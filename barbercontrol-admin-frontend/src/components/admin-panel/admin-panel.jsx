@@ -1,7 +1,31 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from 'react'
+import api from "@/services/apiInstance";
 
 export default function AdminPanel() {
+
+    const [appointments, setAppointments] = useState([])
+    const [cursor, setCursor] = useState(null)
+
+    const appointmentsFound = async () => {
+        try {
+            const response = await api.get('/admin-appointments/clients', {
+                params: {
+                    cursor: cursor
+                }
+            })
+            setCursor(response?.nextCursor)
+            setAppointments(response.appointments)
+            console.log(response)
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    useEffect(() => {
+        appointmentsFound()
+    }, [])
 
     return (
         <Card className="shadow-sm">
