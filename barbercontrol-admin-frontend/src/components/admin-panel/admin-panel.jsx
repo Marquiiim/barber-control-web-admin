@@ -15,6 +15,7 @@ export default function AdminPanel() {
     const [reschedulingConfig, setReschedulingConfig] = useState({
         availables: null,
         currentAppointment: {
+            id: null,
             date: null,
             hour: null
         },
@@ -38,18 +39,19 @@ export default function AdminPanel() {
 
     const schedulingAvailables = async () => {
         try {
-            return await api.get('/admin-appointments/rescheduling')
+            return await api.get('/admin-appointments/appointments/available')
         } catch (error) {
             console.log(error)
         }
     }
 
-    const reschedulingClient = async (date, hour) => {
+    const reschedulingClient = async (id, date, hour) => {
         try {
             const available = await schedulingAvailables()
             setReschedulingConfig({
                 availables: available,
                 currentAppointment: {
+                    id: id,
                     date: date,
                     hour: hour
                 },
@@ -179,7 +181,7 @@ export default function AdminPanel() {
                                         <Button
                                             variant="outline"
                                             className="h-8 px-4 text-[13px] border-yellow-400 text-yellow-600 hover:bg-yellow-50"
-                                            onClick={() => reschedulingClient(appointment.appointment_date, appointment.schedules)}
+                                            onClick={() => reschedulingClient(appointment.id, appointment.appointment_date, appointment.schedules)}
                                         >
                                             Reagendar
                                         </Button>
@@ -203,7 +205,7 @@ export default function AdminPanel() {
                     onClose={() => setReschedulingConfig({ availables: null, showModal: false })}
                     availableDates={reschedulingConfig.availables.dates}
                     availableHours={reschedulingConfig.availables.hours}
-                    currentAppointment={reschedulingConfig.availables.currentAppointment}
+                    currentAppointment={reschedulingConfig.currentAppointment}
                 />
             )}
         </>

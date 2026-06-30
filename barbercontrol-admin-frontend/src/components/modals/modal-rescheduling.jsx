@@ -8,8 +8,9 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Calendar, Clock } from "lucide-react"
+import { Calendar, Clock, Loader2 } from "lucide-react"
 import { useState } from "react"
+import api from "@/services/apiInstance"
 
 export default function RescheduleModal({
     open,
@@ -18,6 +19,32 @@ export default function RescheduleModal({
     availableHours,
     currentAppointment
 }) {
+
+    const [reschedulingData, setReschedulingData] = useState({
+        appointmentId: currentAppointment.id,
+        newDate: null,
+        newHour: null
+    })
+
+    const [loading, setLoading] = useState(false)
+
+    const rescheduling = async () => {
+        try {
+            setLoading(true)
+            const response = await api.patch('/admin-appointments/', {
+                params: {
+                    id: reschedulingData.appointmentId,
+                    date: reschedulingData.newDate,
+                    hour: reschedulingData.newHour
+                }
+            })
+            console.log(response)
+        } catch (error) {
+            console.log(error)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -35,7 +62,7 @@ export default function RescheduleModal({
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-xs text-blue-700 dark:text-blue-300">
                         <span className="font-medium">Agendamento atual:</span>{' '}
-                        {currentAppointment?.date} às {currentAppointment?.hour}
+                        {new Date(currentAppointment?.date).toLocaleDateString('pt-BR')} às {currentAppointment?.hour}
                     </p>
                 </div>
 
@@ -50,9 +77,10 @@ export default function RescheduleModal({
                                 <Button
                                     key={index}
                                     type="button"
-                                    variant={'selectedDate' === date ? 'default' : 'outline'}
+                                    variant={reschedulingData.newDate === date ? 'default' : 'outline'}
                                     className="w-full text-sm"
-                                    onClick={''}
+                                    onClick={() => setReschedulingData(prev => ({ ...prev, newDate: date }))}
+                                    disabled={loading}
                                 >
                                     {date}
                                 </Button>
@@ -63,29 +91,31 @@ export default function RescheduleModal({
                         </p>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label className="text-sm font-medium flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            Novo Horário
-                        </Label>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {availableHours.map((hour, index) => (
-                                <Button
-                                    key={index}
-                                    type="button"
-                                    variant={'selectedHour' === hour ? 'default' : 'outline'}
-                                    className="w-full text-sm"
-                                    onClick={''}
-                                >
-                                    {hour}
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
+                    {reschedulingData.newDate &&
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                Novo Horário
+                            </Label>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                {availableHours.map((hour, index) => (
+                                    <Button
+                                        key={index}
+                                        type="button"
+                                        variant={reschedulingData.newHour === hour ? 'default' : 'outline'}
+                                        className="w-full text-sm"
+                                        onClick={() => setReschedulingData(prev => ({ ...prev, newHour: hour }))}
+                                        disabled={loading}
+                                    >
+                                        {hour}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>}
 
                     <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
                         <p className="text-sm text-green-700 dark:text-green-300 font-medium">
-                            Novo agendamento: 12 às 12
+                            Novo agendamento: {reschedulingData?.newHour} às {reschedulingData?.newDate}
                         </p>
                     </div>
                 </div>
@@ -93,17 +123,25 @@ export default function RescheduleModal({
                 <DialogFooter className="flex-col sm:flex-row gap-2">
                     <Button
                         variant="outline"
-                        onClick={''}
+                        onClick={onClose}
                         className="w-full sm:w-auto"
+                        disabled={loading}
                     >
                         Cancelar
                     </Button>
                     <Button
-                        onClick={''}
-                        disabled={''}
+                        onClick={rescheduling}
+                        disabled={loading || !reschedulingData.newHour || !reschedulingData.newDate}  // ✅ Corrigi a lógica
                         className="w-full sm:w-auto"
                     >
-                        Confirmar Reagendamento
+                        {loading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Reagendando...
+                            </>
+                        ) : (
+                            'Confirmar Reagendamento'
+                        )}
                     </Button>
                 </DialogFooter>
             </DialogContent>
