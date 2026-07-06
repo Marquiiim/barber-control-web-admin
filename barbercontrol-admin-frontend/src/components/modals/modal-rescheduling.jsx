@@ -9,21 +9,33 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Calendar, Clock, Loader2 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import api from "@/services/apiInstance"
 
 export default function RescheduleModal({
     open,
     onClose,
-    availableDates,
-    availableHours,
     currentAppointment
 }) {
 
-    const [reschedulingData, setReschedulingData] = useState({
-        appointmentId: currentAppointment.id,
-        newDate: null,
-        newHour: null
+    const [appointmentData, setAppointmentData] = useState({
+        current: {
+            id: currentAppointment?.id || null,
+            date: currentAppointment?.appointment_date || null,
+            hour: currentAppointment?.schedules || null
+        },
+        update: {
+            newDate: null,
+            newHourId: null,
+            newHour: null
+        }
+    })
+
+    const [reschedulingAvailable, setReschedulingAvailable] = useState({
+        dates: [],
+        hours: [],
+        selectedDate: null,
+        selectedHour: null
     })
 
     const [loading, setLoading] = useState(false)
@@ -31,20 +43,114 @@ export default function RescheduleModal({
     const rescheduling = async () => {
         try {
             setLoading(true)
-            const response = await api.patch('/admin-appointments/', {
-                params: {
-                    id: reschedulingData.appointmentId,
-                    date: reschedulingData.newDate,
-                    hour: reschedulingData.newHour
-                }
+            const response = await api.patch(`/admin-appointments/${appointmentData.current.id}`, {
+                date: appointmentData.update.newDate,
+                hourId: appointmentData.update.newHourId
             })
             console.log(response)
+            onClose()
         } catch (error) {
             console.log(error)
         } finally {
             setLoading(false)
         }
     }
+
+    const fetchAvailables = async (date) => {
+        try {
+            const dateToSend = date || new Date().toISOString().split('T')[0]
+
+            const response = await api.get('/admin-appointments/appointments/available', {
+                params: {
+                    date: dateToSend
+                }
+            })
+
+            setReschedulingAvailable(prev => ({
+                ...prev,
+                dates: response?.dates || [],
+                hours: response?.hours || []
+            }))
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    const dataSelected = (dateValue) => {
+        if (reschedulingAvailable.selectedDate === dateValue) {
+            setReschedulingAvailable(prev => ({
+                ...prev,
+                selectedDate: null,
+                selectedHour: null
+            }))
+            setAppointmentData(prev => ({
+                ...prev,
+                update: {
+                    newDate: null,
+                    newHourId: null,
+                    newHour: null
+                }
+            }))
+            fetchAvailables(new Date().toISOString().split('T')[0])
+            return
+        }
+
+        setReschedulingAvailable(prev => ({
+            ...prev,
+            selectedDate: dateValue,
+            selectedHour: null
+        }))
+        setAppointmentData(prev => ({
+            ...prev,
+            update: {
+                newDate: dateValue,
+                newHourId: null,
+                newHour: null
+            }
+        }))
+        fetchAvailables(dateValue)
+    }
+
+    const hourSelected = (hourId) => {
+        if (reschedulingAvailable.selectedHour === hourId) {
+            setReschedulingAvailable(prev => ({
+                ...prev,
+                selectedHour: null
+            }))
+            setAppointmentData(prev => ({
+                ...prev,
+                update: {
+                    ...prev.update,
+                    newHourId: null,
+                    newHour: null
+                }
+            }))
+            return
+        }
+
+        const selectedHourObj = reschedulingAvailable.hours.find(h => h.id === hourId)
+
+        if (selectedHourObj && reschedulingAvailable.selectedDate) {
+            setReschedulingAvailable(prev => ({
+                ...prev,
+                selectedHour: hourId
+            }))
+            setAppointmentData(prev => ({
+                ...prev,
+                update: {
+                    ...prev.update,
+                    newHourId: hourId,
+                    newHour: selectedHourObj.hour
+                }
+            }))
+        }
+    }
+
+    useEffect(() => {
+        if (open) {
+            fetchAvailables(new Date().toISOString().split('T')[0])
+        }
+    }, [open])
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -62,7 +168,10 @@ export default function RescheduleModal({
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-xs text-blue-700 dark:text-blue-300">
                         <span className="font-medium">Agendamento atual:</span>{' '}
-                        {new Date(currentAppointment?.date).toLocaleDateString('pt-BR')} às {currentAppointment?.hour}
+                        {appointmentData.current.date ?
+                            new Date(appointmentData.current.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) :
+                            'Data não disponível'
+                        } às {appointmentData.current.hour}
                     </p>
                 </div>
 
@@ -73,51 +182,51 @@ export default function RescheduleModal({
                             Nova Data
                         </Label>
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {availableDates.map((date, index) => (
+                            {reschedulingAvailable.dates.map((date, index) => (
                                 <Button
                                     key={index}
                                     type="button"
-                                    variant={reschedulingData.newDate === date ? 'default' : 'outline'}
+                                    variant={reschedulingAvailable.selectedDate === date.formattedFromValue ? 'default' : 'outline'}
                                     className="w-full text-sm"
-                                    onClick={() => setReschedulingData(prev => ({ ...prev, newDate: date }))}
+                                    onClick={() => dataSelected(date.formattedFromValue)}
                                     disabled={loading}
                                 >
-                                    {date}
+                                    {date.formattedFromDate}
                                 </Button>
                             ))}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            Selecione uma data disponível
-                        </p>
                     </div>
 
-                    {reschedulingData.newDate &&
+                    {reschedulingAvailable.selectedDate && (
                         <div className="space-y-2">
                             <Label className="text-sm font-medium flex items-center gap-2">
                                 <Clock className="h-4 w-4" />
                                 Novo Horário
                             </Label>
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                                {availableHours.map((hour, index) => (
+                                {reschedulingAvailable.hours.map((hour) => (
                                     <Button
-                                        key={index}
+                                        key={hour.id}
                                         type="button"
-                                        variant={reschedulingData.newHour === hour ? 'default' : 'outline'}
+                                        variant={reschedulingAvailable.selectedHour === hour.id ? 'default' : 'outline'}
                                         className="w-full text-sm"
-                                        onClick={() => setReschedulingData(prev => ({ ...prev, newHour: hour }))}
+                                        onClick={() => hourSelected(hour.id)}
                                         disabled={loading}
                                     >
-                                        {hour}
+                                        {hour.hour}
                                     </Button>
                                 ))}
                             </div>
-                        </div>}
+                        </div>
+                    )}
 
-                    <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                        <p className="text-sm text-green-700 dark:text-green-300 font-medium">
-                            Novo agendamento: {reschedulingData?.newHour} às {reschedulingData?.newDate}
-                        </p>
-                    </div>
+                    {appointmentData.update.newDate && appointmentData.update.newHour && (
+                        <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <p className="text-sm text-green-700 dark:text-green-300 font-medium">
+                                Novo agendamento: {new Date(appointmentData.update.newDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} às {appointmentData.update.newHour}
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -131,7 +240,7 @@ export default function RescheduleModal({
                     </Button>
                     <Button
                         onClick={rescheduling}
-                        disabled={loading || !reschedulingData.newHour || !reschedulingData.newDate}  // ✅ Corrigi a lógica
+                        disabled={loading || !appointmentData.update.newHourId || !appointmentData.update.newDate}
                         className="w-full sm:w-auto"
                     >
                         {loading ? (

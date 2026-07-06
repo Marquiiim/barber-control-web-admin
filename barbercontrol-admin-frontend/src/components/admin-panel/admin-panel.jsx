@@ -13,12 +13,7 @@ export default function AdminPanel() {
         meta: null
     })
     const [reschedulingConfig, setReschedulingConfig] = useState({
-        availables: null,
-        currentAppointment: {
-            id: null,
-            date: null,
-            hour: null
-        },
+        currentAppointment: null,
         showModal: false
     })
     const [loading, setLoading] = useState(false)
@@ -37,29 +32,11 @@ export default function AdminPanel() {
         }
     }
 
-    const schedulingAvailables = async () => {
-        try {
-            return await api.get('/admin-appointments/appointments/available')
-        } catch (error) {
-            console.log(error)
-        }
-    }
-
-    const reschedulingClient = async (id, date, hour) => {
-        try {
-            const available = await schedulingAvailables()
-            setReschedulingConfig({
-                availables: available,
-                currentAppointment: {
-                    id: id,
-                    date: date,
-                    hour: hour
-                },
-                showModal: true
-            })
-        } catch (error) {
-            console.log(error)
-        }
+    const reschedulingClient = async (appointment) => {
+        setReschedulingConfig({
+            currentAppointment: appointment,
+            showModal: true
+        })
     }
 
     useEffect(() => {
@@ -74,7 +51,6 @@ export default function AdminPanel() {
                 setAppointments({ data: response.found, meta: response.meta })
             } catch (error) {
                 console.log(error)
-                toast.error('Erro ao carregar atendimentos')
             } finally {
                 setLoading(false)
             }
@@ -181,7 +157,7 @@ export default function AdminPanel() {
                                         <Button
                                             variant="outline"
                                             className="h-8 px-4 text-[13px] border-yellow-400 text-yellow-600 hover:bg-yellow-50"
-                                            onClick={() => reschedulingClient(appointment.id, appointment.appointment_date, appointment.schedules)}
+                                            onClick={() => reschedulingClient(appointment)}
                                         >
                                             Reagendar
                                         </Button>
@@ -199,12 +175,10 @@ export default function AdminPanel() {
                 </CardContent>
             </Card>
 
-            {reschedulingConfig.availables && reschedulingConfig.showModal && (
+            {reschedulingConfig.showModal && (
                 < ModalRescheduling
                     open={reschedulingConfig.showModal}
-                    onClose={() => setReschedulingConfig({ availables: null, showModal: false })}
-                    availableDates={reschedulingConfig.availables.dates}
-                    availableHours={reschedulingConfig.availables.hours}
+                    onClose={() => setReschedulingConfig({ showModal: false })}
                     currentAppointment={reschedulingConfig.currentAppointment}
                 />
             )}
