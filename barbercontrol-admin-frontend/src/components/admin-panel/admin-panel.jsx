@@ -6,6 +6,7 @@ import { Badge } from "../ui/badge";
 import { Bell, Users } from "lucide-react";
 import { toast } from "sonner"
 import ModalRescheduling from '../modals/modal-rescheduling'
+import AbsencePopover from "../modals/popover-absence";
 
 export default function AdminPanel() {
     const [appointments, setAppointments] = useState({
@@ -161,12 +162,9 @@ export default function AdminPanel() {
                                         >
                                             Reagendar
                                         </Button>
-                                        <Button
-                                            variant="destructive"
-                                            className="h-8 px-4 text-[13px]"
-                                        >
-                                            Ausência
-                                        </Button>
+
+                                        {/*BOTÃO DE AUSÊNCIA*/}
+                                        <AbsencePopover appointmentId={appointment.id} />
                                     </div>
                                 </div>
                             </div>

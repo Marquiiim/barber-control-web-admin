@@ -47,7 +47,6 @@ export default function RescheduleModal({
                 date: appointmentData.update.newDate,
                 hourId: appointmentData.update.newHourId
             })
-            console.log(response)
             onClose()
         } catch (error) {
             console.log(error)
